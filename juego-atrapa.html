@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atrápalo si puedes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#2b1560;
+    --bg2:#5b1d8c;
+    --accent:#ffd23f;
+    --accent2:#ff6b9d;
+    --accent3:#4ce0d2;
+    --ink:#ffffff;
+    --muted:#cbb8f0;
+    box-sizing:border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html{ scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{
+    height:100%; margin:0;
+    background: radial-gradient(circle at 30% 15%, var(--bg2), var(--bg1) 65%);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    overflow:hidden;
+    user-select:none;
+  }
+  body{ position:relative; }
+
+  .layer{
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    padding: 24px 20px;
+    z-index:3;
+    pointer-events:none;
+  }
+  .screen{ display:none; width:100%; max-width:460px; text-align:center; pointer-events:auto; }
+  .screen.active{ display:block; animation: pop .5s cubic-bezier(.2,.9,.25,1.3); }
+  @keyframes pop{ from{opacity:0; transform:scale(.9);} to{opacity:1; transform:scale(1);} }
+  @media (prefers-reduced-motion: reduce){ .screen.active{ animation:none; } }
+
+  h1{
+    font-family:'Fredoka', sans-serif;
+    font-weight:700;
+    font-size: clamp(30px, 9vw, 46px);
+    line-height:1.1;
+    margin: 0 0 12px;
+    color: var(--accent);
+    text-shadow: 0 4px 0 rgba(0,0,0,.15);
+  }
+  p.sub{ color:var(--muted); font-size:15px; line-height:1.6; margin:0 0 26px; font-weight:400; }
+
+  input[type="text"]{
+    width:100%; max-width:280px;
+    padding:14px 18px;
+    background:rgba(255,255,255,.1);
+    border:2px solid rgba(255,255,255,.25);
+    border-radius:16px;
+    font-family:'Inter',sans-serif;
+    font-size:17px;
+    color:var(--ink);
+    text-align:center;
+    outline:none;
+    transition: border-color .3s;
+  }
+  input[type="text"]:focus{ border-color: var(--accent); }
+  input::placeholder{ color:#c9b9ea; }
+
+  button{
+    margin-top:26px;
+    background: var(--accent);
+    border:none;
+    color:#2b1560;
+    font-weight:600;
+    padding:14px 38px;
+    font-family:'Fredoka',sans-serif;
+    font-size:16px;
+    border-radius:40px;
+    cursor:pointer;
+    box-shadow: 0 6px 0 #c99a1f;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  button:active{ transform: translateY(4px); box-shadow: 0 2px 0 #c99a1f; }
+  button:disabled{ opacity:.35; cursor:default; pointer-events:none; }
+  button:focus-visible, input:focus-visible{ outline:2px solid var(--accent3); outline-offset:3px; }
+
+  .rules{
+    display:flex; justify-content:center; gap:22px; margin: 10px 0 30px;
+    font-size:13px; color:var(--muted);
+  }
+  .rules div{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .mini-orb{
+    width:34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:700; color:#fff;
+    background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.95), var(--c) 45%, var(--cd) 100%);
+    box-shadow: 0 4px 10px rgba(0,0,0,.3);
+  }
+
+  .blob{
+    position:fixed; z-index:1; border-radius:50%;
+    filter: blur(60px); opacity:.35; pointer-events:none;
+  }
+  #blob1{ width:260px; height:260px; background:#ff6b9d; top:-60px; left:-60px; }
+  #blob2{ width:300px; height:300px; background:#4ce0d2; bottom:-80px; right:-60px; }
+  #blob3{ width:200px; height:200px; background:#ffd23f; top:40%; right:10%; }
+
+  /* ---------- HUD ---------- */
+  #hud{
+    position:fixed; top:calc(16px + env(safe-area-inset-top, 0px)); left:0; right:0;
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 0 20px; z-index:4;
+    font-family:'Fredoka',sans-serif;
+  }
+  .hud-pill{
+    background:rgba(255,255,255,.12);
+    border:1.5px solid rgba(255,255,255,.2);
+    padding:9px 18px;
+    border-radius:30px;
+    font-size:15px;
+    letter-spacing:.2px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  }
+  #hud .score-pill{ color: var(--accent); font-weight:600; }
+  #hud .timer-pill{ color: var(--accent3); font-weight:600; }
+
+  /* ---------- Game field ---------- */
+  #field{
+    position:fixed; inset:0; z-index:2;
+  }
+  .item{
+    position:absolute;
+    width:54px; height:54px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:50%;
+    font-size: 24px;
+    font-weight:700;
+    line-height:1;
+    color:#fff;
+    cursor:pointer;
+    touch-action: manipulation;
+    background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.95), var(--c) 45%, var(--cd) 100%);
+    box-shadow:
+      0 0 0 3px rgba(255,255,255,.12),
+      0 6px 14px rgba(0,0,0,.3),
+      0 0 22px var(--glow);
+    animation: fall linear forwards, wobble 2.2s ease-in-out infinite;
+    will-change: transform;
+  }
+  @keyframes wobble{ 0%,100%{ rotate: -6deg; } 50%{ rotate: 6deg; } }
+  @media (prefers-reduced-motion: reduce){ .item{ animation: fall linear forwards; } }
+  @keyframes fall{ from{ transform: translateY(-60px); } to{ transform: translateY(115vh); } }
+  .item.pop{
+    animation: none !important;
+    pointer-events:none;
+    transform: scale(1.6);
+    opacity:0;
+    transition: transform .3s ease, opacity .3s ease;
+  }
+
+  .float-score{
+    position:absolute; font-family:'Fredoka',sans-serif; font-weight:700;
+    font-size:20px; pointer-events:none; z-index:5;
+    animation: floatUp .7s ease forwards;
+  }
+  @keyframes floatUp{ from{ opacity:1; transform:translateY(0); } to{ opacity:0; transform:translateY(-40px); } }
+
+  /* ---------- Final ---------- */
+  .badge{
+    font-size:64px; margin-bottom:8px;
+  }
+  .final-title{
+    font-family:'Fredoka', sans-serif; font-weight:700;
+    font-size: clamp(24px, 7vw, 32px);
+    color: var(--accent);
+    margin: 0 0 6px;
+  }
+  .final-score{
+    font-family:'Fredoka', sans-serif; font-weight:600;
+    font-size:18px; color:var(--accent3); margin-bottom:18px;
+  }
+  .final-sub{ color:var(--muted); font-size:14px; line-height:1.6; max-width:340px; margin:0 auto 8px; }
+  .replay{
+    background:none; border:2px solid rgba(255,255,255,.3); color:var(--ink);
+    font-family:'Fredoka',sans-serif; font-weight:500;
+    font-size:14px; padding:11px 28px; border-radius:30px; cursor:pointer;
+    margin-top:18px; box-shadow:none;
+    transition: border-color .3s;
+  }
+  .replay:active{ transform:none; }
+  .replay:hover{ border-color: var(--accent3); }
+</style>
+</head>
+<body>
+
+<div class="blob" id="blob1"></div>
+<div class="blob" id="blob2"></div>
+<div class="blob" id="blob3"></div>
+
+<div id="hud" style="display:none;">
+  <div class="hud-pill score-pill">⭐ <span id="scoreVal">0</span></div>
+  <div class="hud-pill timer-pill">⏱ <span id="timeVal">30</span>s</div>
+</div>
+
+<div id="field"></div>
+
+<div class="layer">
+
+  <!-- SCREEN 1: intro -->
+  <section class="screen active" id="screen-intro">
+    <h1>Atrápalo<br>si puedes</h1>
+    <p class="sub">30 segundos. Toca lo bueno, evita las bombas.</p>
+    <div class="rules">
+      <div><span class="mini-orb" style="--c:#ffd23f;--cd:#c98d12;">★</span>+puntos</div>
+      <div><span class="mini-orb" style="--c:#ff5c5c;--cd:#a11c1c;">✖</span>−puntos</div>
+    </div>
+    <input id="nameInput" type="text" placeholder="Tu nombre (opcional)" autocomplete="off" maxlength="20">
+    <br>
+    <button id="startBtn">Jugar</button>
+  </section>
+
+  <!-- SCREEN 3: final -->
+  <section class="screen" id="screen-final">
+    <div class="badge" id="finalBadge">⭐</div>
+    <div class="final-title" id="finalTitle">Reflejos decentes</div>
+    <div class="final-score" id="finalScore">0 puntos</div>
+    <p class="final-sub" id="finalSub">Nada mal.</p>
+    <button class="replay" id="replayBtn">Jugar de nuevo</button>
+  </section>
+
+</div>
+
+<script>
+  const GOOD_ITEMS = [
+    { sym:'★', c:'#ffd23f', cd:'#c98d12', glow:'rgba(255,210,63,.55)' },
+    { sym:'✦', c:'#ff8fc7', cd:'#c23f80', glow:'rgba(255,143,199,.5)' },
+    { sym:'●', c:'#4ce0d2', cd:'#128f82', glow:'rgba(76,224,210,.5)' },
+    { sym:'◆', c:'#9d7bff', cd:'#5b32c9', glow:'rgba(157,123,255,.5)' },
+    { sym:'▲', c:'#ffb84c', cd:'#c96e12', glow:'rgba(255,184,76,.5)' }
+  ];
+  const BAD_ITEM = { sym:'✖', c:'#ff5c5c', cd:'#a11c1c', glow:'rgba(255,92,92,.6)' };
+  const GAME_TIME = 30;
+
+  const screens = {
+    intro: document.getElementById('screen-intro'),
+    final: document.getElementById('screen-final')
+  };
+  const hud = document.getElementById('hud');
+  const field = document.getElementById('field');
+  const scoreVal = document.getElementById('scoreVal');
+  const timeVal = document.getElementById('timeVal');
+  const nameInput = document.getElementById('nameInput');
+  const startBtn = document.getElementById('startBtn');
+  const replayBtn = document.getElementById('replayBtn');
+  const finalBadge = document.getElementById('finalBadge');
+  const finalTitle = document.getElementById('finalTitle');
+  const finalScore = document.getElementById('finalScore');
+  const finalSub = document.getElementById('finalSub');
+
+  let score = 0;
+  let timeLeft = GAME_TIME;
+  let spawnTimer = null;
+  let countdownTimer = null;
+  let running = false;
+
+  function showScreen(key){
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    if(key) screens[key].classList.add('active');
+  }
+
+  function randRange(min, max){ return Math.random()*(max-min)+min; }
+
+  function spawnItem(){
+    const isBad = Math.random() < 0.18;
+    const data = isBad ? BAD_ITEM : GOOD_ITEMS[Math.floor(Math.random()*GOOD_ITEMS.length)];
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.textContent = data.sym;
+    el.style.setProperty('--c', data.c);
+    el.style.setProperty('--cd', data.cd);
+    el.style.setProperty('--glow', data.glow);
+    el.dataset.bad = isBad ? '1' : '0';
+
+    const scale = randRange(0.85, 1.3);
+    el.style.fontSize = (24*scale) + 'px';
+    el.style.width = (54*scale) + 'px';
+    el.style.height = (54*scale) + 'px';
+    el.style.left = randRange(6, 85) + 'vw';
+    el.style.top = '-60px';
+
+    const duration = randRange(3.4, 5.6);
+    el.style.animationDuration = duration + 's, ' + randRange(1.6,2.8) + 's';
+
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); catchItem(el); });
+    el.addEventListener('animationend', () => el.remove());
+    field.appendChild(el);
+  }
+
+  function catchItem(el){
+    if(el.classList.contains('pop')) return;
+    const isBad = el.dataset.bad === '1';
+    const delta = isBad ? -3 : 1;
+    score = Math.max(0, score + delta);
+    scoreVal.textContent = score;
+
+    showFloatScore(el, delta);
+
+    el.classList.add('pop');
+    setTimeout(() => el.remove(), 320);
+  }
+
+  function showFloatScore(el, delta){
+    const rect = el.getBoundingClientRect();
+    const f = document.createElement('div');
+    f.className = 'float-score';
+    f.style.left = rect.left + 'px';
+    f.style.top = rect.top + 'px';
+    f.style.color = delta > 0 ? '#ffd23f' : '#ff6b9d';
+    f.textContent = (delta > 0 ? '+' : '') + delta;
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 700);
+  }
+
+  function startGame(){
+    score = 0;
+    timeLeft = GAME_TIME;
+    scoreVal.textContent = '0';
+    timeVal.textContent = String(GAME_TIME);
+    field.innerHTML = '';
+    hud.style.display = 'flex';
+    showScreen(null);
+    running = true;
+
+    spawnTimer = setInterval(() => { if(running) spawnItem(); }, 550);
+    countdownTimer = setInterval(() => {
+      timeLeft--;
+      timeVal.textContent = String(Math.max(0, timeLeft));
+      if(timeLeft <= 0) endGame();
+    }, 1000);
+  }
+
+  function endGame(){
+    running = false;
+    clearInterval(spawnTimer);
+    clearInterval(countdownTimer);
+    field.innerHTML = '';
+    hud.style.display = 'none';
+
+    const name = nameInput.value.trim();
+    let badge, title, sub;
+    if(score < 8){
+      badge = '🐢'; title = 'Reflejos en construcción';
+      sub = 'La próxima le agarras más el modo, tranquila.';
+    } else if(score < 16){
+      badge = '⭐'; title = 'Reflejos decentes';
+      sub = 'Nada mal para un primer intento.';
+    } else if(score < 26){
+      badge = '⚡'; title = 'Rápida como el rayo';
+      sub = ' Okay, ya nos impresionaste.';
+    } else {
+      badge = '👑'; title = 'Leyenda de los reflejos';
+      sub = 'Esto ya es otro nivel, en serio.';
+    }
+    finalBadge.textContent = badge;
+    finalTitle.textContent = name ? `${title}, ${name}` : title;
+    finalScore.textContent = `${score} puntos`;
+    finalSub.textContent = sub;
+
+    showScreen('final');
+  }
+
+  startBtn.addEventListener('click', startGame);
+  replayBtn.addEventListener('click', () => {
+    showScreen('intro');
+  });
+</script>
+</body>
+</html>
